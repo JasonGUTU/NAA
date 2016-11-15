@@ -28,7 +28,8 @@ class NAA_base(object):
                              (3) shelter_capacity - integer. Capacity of each shelter,
                              (4) Cr_local         - Local crossover factor,                      TODO: type
                              (5) Cr_global        - Global crossover factor,
-                             (6) alpha            - Movement factor]
+                             (6) alpha            - Movement factor,
+                             (7) delta            - Scaling factor]
              verbose    - iteration information display flag.                                    TODO: verbose
         """
         assert isinstance(dimension, int), "The NAA_base init argument `dimension` must be an integer."
@@ -52,6 +53,7 @@ class NAA_base(object):
         self.cr_lc = parameters[3]  # Local crossover factor
         self.cr_gb = parameters[4]  # Global crossover factor
         self.alpha = parameters[5]  # Movement factor
+        self.delta = parameters[6]  # Scaling factor
 
     def load_problem(opt_objective, fitness_func):
         """Load optimization problem and fitness function.
@@ -158,14 +160,74 @@ class NAA_base(object):
     def _generalized_search(self, individual_idx):
         """If an individual is an explore individual, it will Perform the generalized search.
         Firstly, it randomly selects two different individuals to generate a mutant."""
+        # two differ- ent individuals
+        random_choose = random.sample(range(self.N_pop), 3)
+        if individual_idx in random_choose:
+            random_choose.remove(individual_idx)
+            rand_idx_1, rand_idx_2 = random_choose
+        else:
+            rand_idx_1, rand_idx_2, _ = random_choose
+        rand_indi_1 = self.pop[rand_idx_1]
+        rand_indi_2 = self.pop[rand_idx_2]
+        choosen_indi = self.pop[individual_idx]
+
+        # generate mutation
+        random_mult_1, random_mult_2 = np.random.rand(2, self.dim)
+        mutation = choosen_indi + self.alpha * random_mult_1 * (rand_indi_1 - choosen_indi) + self.alpha * random_mult_2 * (rand_indi_2 - choosen_indi)
+
+        # crossover
+        r = random.randint(0, self.dim - 1)  # can ensure that at least one dimension can be altered
+        new_indi = np.full((self.dim), 0.0)
+        for j in range(self.dim):
+            if random.random() < self.cr_lc or j == r:
+                new_indi[j] = mutation[j]
+            else:
+                new_indi[j] = choosen_indi[j]
+
+        # movement trials
+        new_fitness = self.fit(new_indi)
+        if new_fitness < self.pop_fit[individual_idx]:
+            return new_indi, new_fitness
+        else:
+            return choosen_indi, self.pop_fit[individual_idx]
         
+    def _local_search_follower(self, individual_idx):
+        """If an individual is a follower in the sth shelter, it will
+        move towards the shelter site"""
+        shelter_site = self.shel_sites[self.pop_shel_idx[individual_idx]]
+        choosen_indi = self.pop[individual_idx]
+
+        # generate a mutation
+        mutation = choosen_indi + 2 * random.random() * (shelter_site - choosen_indi)
+
+        # crossover
+        r = random.randint(0, self.dim - 1)  # can ensure that at least one dimension can be altered
+        new_indi = np.full((self.dim), 0.0)
+        for j in range(self.dim):
+            if random.random() < self.cr_lc or j == r:
+                new_indi[j] = mutation[j]
+            else:
+                new_indi[j] = choosen_indi[j]
+        
+        # movement trials
+        new_fitness = self.fit(new_indi)
+        if new_fitness < self.pop_fit[individual_idx]:
+            return new_indi, new_fitness
+        else:
+            return choosen_indi, self.pop_fit[individual_idx]
+
+    def _local_search_leader(self, individual_idx):
+        """If an individual is a shelter leader, it will search its
+        neighboring area"""
+
 
     def _individual_migration(self):
         """Migration method implement the migration of individulas."""
         for i in range(self.N_pop):
             if self.pop_shel_idx[i] != -1:  # if it is an exploit individual
                 Q_s = self._prob_leave(self.pop_shel_idx[i])  # probability of leave
-                if random.random() < Q_s:
+                if random.random() < Q_s:  # TODO: smaller than?
+
                     
                     
 
