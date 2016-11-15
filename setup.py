@@ -7,7 +7,7 @@ setup(
     keywords = ('Global Optimization', 'Evolutionary computation', 'Natural Aggregation Algorithm'),
     description = 'Natural Aggregation Algorithm: A New Powerful Global Optimizer over Continuous Spaces',
     license = 'MIT License',
-    install_requires = ['numpy'],
+    install_requires = ['numpy', 'sympy', 'scipy'],
 
     author = 'Jason GT',
     author_email = 'hellojasongt@gmail.com',
