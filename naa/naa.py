@@ -3,6 +3,7 @@
 Author : JasonGUTU
 Email  : hellojasongt@gmail.com
 Python : anaconda3
+Date   : 2016/11/18
 """
 import random
 
@@ -50,12 +51,13 @@ class NAA_base(object):
         self.N_pop = parameters[0]  # Number of the individuals
         self.N_shels = parameters[1]  # Number of the shelters
         self.cap = parameters[2]  # Capacity of each shelter
+        assert 0 < parameters[3] < 1.0 and 0 < parameters[4] < 1.0, "The Crossover Factor `parameters[3]` or `parameters[4]` should be in (1, 0)."
         self.cr_lc = parameters[3]  # Local crossover factor
         self.cr_gb = parameters[4]  # Global crossover factor
-        self.alpha = parameters[5]  # Movement factor
-        self.delta = parameters[6]  # Scaling factor
+        self.alpha = float(parameters[5])  # Movement factor
+        self.delta = float(parameters[6])  # Scaling factor
 
-    def load_problem(opt_objective, fitness_func):
+    def load_problem(opt_objective, fitness_func=None):
         """Load optimization problem and fitness function.
 
         Args:
@@ -63,7 +65,10 @@ class NAA_base(object):
             fitness_func  - type: function.
         """
         assert hasattr(opt_objective, '__call__'), "`opt_objective` must be callable."
-        assert hasattr(fitness_func, '__call__'), "`fitness_func` must be callable."
+        if fitness_func is not None
+            assert hasattr(fitness_func, '__call__'), "`fitness_func` must be callable."
+        else:
+            fitness_func = opt_objective
         self.opt_obj = opt_objective
         self.fit = fitness_func
 
@@ -108,6 +113,7 @@ class NAA_base(object):
         shel_leader_site_idx = fit_ascendant_order_idx[: self.N_shels]
         for shel_idx, leader_idx in enumerate(shel_leader_site_idx):
             # `leader_idx` is the index of shelter leader in population
+            self.shel_leaders_idx = shel_leader_site_idx
             self.pop_shel_idx[leader_idx] = shel_idx  # set the shelter index of the leaders
             self.shel_sites[shel_idx] = self.pop[leader_idx]  # set the shelter sites
             self.shel_fit[shel_idx] = self.pop_fit[leader_idx]  # set the fitness of shelter sites
@@ -172,8 +178,8 @@ class NAA_base(object):
         choosen_indi = self.pop[individual_idx]
 
         # generate mutation
-        random_mult_1, random_mult_2 = np.random.rand(2, self.dim)
-        mutation = choosen_indi + self.alpha * random_mult_1 * (rand_indi_1 - choosen_indi) + self.alpha * random_mult_2 * (rand_indi_2 - choosen_indi)
+        random_mut_1, random_mut_2 = np.random.rand(2, self.dim)
+        mutation = choosen_indi + self.alpha * random_mut_1 * (rand_indi_1 - choosen_indi) + self.alpha * random_mut_2 * (rand_indi_2 - choosen_indi)
 
         # crossover
         r = random.randint(0, self.dim - 1)  # can ensure that at least one dimension can be altered
@@ -190,7 +196,7 @@ class NAA_base(object):
             return new_indi, new_fitness
         else:
             return choosen_indi, self.pop_fit[individual_idx]
-        
+
     def _local_search_follower(self, individual_idx):
         """If an individual is a follower in the sth shelter, it will
         move towards the shelter site"""
@@ -208,7 +214,7 @@ class NAA_base(object):
                 new_indi[j] = mutation[j]
             else:
                 new_indi[j] = choosen_indi[j]
-        
+
         # movement trials
         new_fitness = self.fit(new_indi)
         if new_fitness < self.pop_fit[individual_idx]:
@@ -219,17 +225,48 @@ class NAA_base(object):
     def _local_search_leader(self, individual_idx):
         """If an individual is a shelter leader, it will search its
         neighboring area"""
+        # generate a mutation
+        choosen_indi = self.pop[individual_idx]
+        random_mut = (np.random.rand(self.dim) * 2 - np.full((self.dim), 1.0)) * self.delta
+        mutation = choosen_indi * random_mut
 
+        # crossover
+        r = random.randint(0, self.dim - 1)  # can ensure that at least one dimension can be altered
+        new_indi = np.full((self.dim), 0.0)
+        for j in range(self.dim):
+            if random.random() < self.cr_lc or j == r:
+                new_indi[j] = mutation[j]
+            else:
+                new_indi[j] = choosen_indi[j]
+
+        # movement trials
+        new_fitness = self.fit(new_indi)
+        if new_fitness < self.pop_fit[individual_idx]:
+            return new_indi, new_fitness
+        else:
+            return choosen_indi, self.pop_fit[individual_idx]
 
     def _individual_migration(self):
         """Migration method implement the migration of individulas."""
         for i in range(self.N_pop):
             if self.pop_shel_idx[i] != -1:  # if it is an exploit individual
-                Q_s = self._prob_leave(self.pop_shel_idx[i])  # probability of leave
-                if random.random() < Q_s:  # TODO: smaller than?
+            # TODO: Do leader leave the shelter?
+                if i in self.shel_leaders_idx:  # If is a shelter leader
 
+                else:
                     
-                    
+                Q_s = self._prob_leave(self.pop_shel_idx[i])  # probability of leave
+                if random.random() < Q_s:  # If leave the shelter  # TODO: smaller than?
+
+                else:  # If do not leave
+            else:  # if it is an explore individual
+
 
 
             
+class NAA(NAA_base):
+
+    def __init__(self):
+        pass
+
+
