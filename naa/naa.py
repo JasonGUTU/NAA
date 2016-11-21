@@ -13,7 +13,7 @@ import scipy as sp
 
 class NAA_base(object):
 
-    def __init__(self, dimension, bound, iteration, parameters, verbose):
+    def __init__(self, dimension, bound, iteration, parameters, verbose, acpt_rnge=None):
         """NAA base class, include population initialize and basic evolution algorithm.
 
         For now, all the dimension default to be float or np.float64 type.
@@ -32,6 +32,7 @@ class NAA_base(object):
                              (6) alpha            - Movement factor,
                              (7) delta            - Scaling factor]
              verbose    - iteration information display flag.                                    TODO: verbose
+             acpt_rnge  - Acceptance range, default to be None
         """
         assert isinstance(dimension, int), "The NAA_base init argument `dimension` must be an integer."
         self.dim = dimension  # dimension of problem
@@ -54,8 +55,17 @@ class NAA_base(object):
         assert 0 < parameters[3] < 1.0 and 0 < parameters[4] < 1.0, "The Crossover Factor `parameters[3]` or `parameters[4]` should be in (1, 0)."
         self.cr_lc = parameters[3]  # Local crossover factor
         self.cr_gb = parameters[4]  # Global crossover factor
-        self.alpha = float(parameters[5])  # Movement factor
-        self.delta = float(parameters[6])  # Scaling factor
+        self.alpha = parameters[5]  # Movement factor
+        self.delta = parameters[6]  # Scaling factor
+
+        # Acceptance range
+        if acpt_rnge is not None:
+            assert isinstance(acpt_rnge, float), "The Acceptance range `acpt_rnge` must be float."  # TODO: non-float?
+            self.acpt_rnge = acpt_rnge
+        else:
+            self.acpt_rnge = None
+        # check is the problem loaded successfully
+        self.loaded = False
 
     def load_problem(opt_objective, fitness_func=None):
         """Load optimization problem and fitness function.
@@ -71,6 +81,7 @@ class NAA_base(object):
             fitness_func = opt_objective
         self.opt_obj = opt_objective
         self.fit = fitness_func
+        self.loaded = True
 
     def _init_population(self):
         """Initialize the population"""
@@ -110,10 +121,9 @@ class NAA_base(object):
         # set the initial shelter leaders
         # sort the individuals by the ascendant order of their fitness values
         fit_ascendant_order_idx = np.argsort(self.pop_fit)
-        shel_leader_site_idx = fit_ascendant_order_idx[: self.N_shels]
-        for shel_idx, leader_idx in enumerate(shel_leader_site_idx):
+        self.shel_leaders_idx = fit_ascendant_order_idx[: self.N_shels]
+        for shel_idx, leader_idx in enumerate(self.shel_leaders_idx):
             # `leader_idx` is the index of shelter leader in population
-            self.shel_leaders_idx = shel_leader_site_idx
             self.pop_shel_idx[leader_idx] = shel_idx  # set the shelter index of the leaders
             self.shel_sites[shel_idx] = self.pop[leader_idx]  # set the shelter sites
             self.shel_fit[shel_idx] = self.pop_fit[leader_idx]  # set the fitness of shelter sites
@@ -250,17 +260,73 @@ class NAA_base(object):
         """Migration method implement the migration of individulas."""
         for i in range(self.N_pop):
             if self.pop_shel_idx[i] != -1:  # if it is an exploit individual
-            # TODO: Do leader leave the shelter?
-                if i in self.shel_leaders_idx:  # If is a shelter leader
-
-                else:
-                    
                 Q_s = self._prob_leave(self.pop_shel_idx[i])  # probability of leave
-                if random.random() < Q_s:  # If leave the shelter  # TODO: smaller than?
-
+                if random.random() < Q_s:  # If leave the shelter
+                    new_ind, new_fit = self._generalized_search(i)
+                    self.pop_shel_idx[i] = -1                        
                 else:  # If do not leave
+                    if i in self.shel_leaders_idx:  # If is a shelter leader
+                        new_ind, new_fit = self._local_search_leader(i)
+                    else:
+                        new_ind, new_fit = self._local_search_follower(i)
             else:  # if it is an explore individual
+                choosen_shel = random.randint(0, self.N_shels)
+                R_s = self._prob_enter(choosen_shel)
+                if random.random() < R_s:  # if enter the shelter
+                    new_ind, new_fit = self._local_search_follower(i)
+                    self.pop_shel_idx[i] = choosen_shel
+                else:  # if do not enter any shelter
+                    new_ind, new_fit = self._generalized_search(i)
+            self.pop[i] = new_ind
+            self.pop_fit[i] = new_fit
 
+    def _update_shelters(self):
+        """Update shelters with the new fitness values"""
+        # sort the individuals by the ascendant order of fitness values
+        fit_ascendant_order_idx = np.argsort(self.pop_fit)
+        self.shel_leaders_idx = fit_ascendant_order_idx[: self.N_shels]
+
+        for shel_idx, leader_idx in enumerate(self.shel_leaders_idx):
+            # `leader_idx` is the index of shelter leader in population
+            self.pop_shel_idx[leader_idx] = shel_idx  # set the shelter index of the leaders
+            self.shel_sites[shel_idx] = self.pop[leader_idx]  # set the shelter sites
+            self.shel_fit[shel_idx] = self.pop_fit[leader_idx]  # set the fitness of shelter sites
+
+        # set the base individual, C_base and fit_base, tobe the (N_shels + 1)th  individual of the sorted individuals
+        self.base_idx = fit_ascendant_order_idx[self.N_shels + 1]
+        self.base_individual = self.pop[self.base_idx]
+        self.base_fitness = self.pop_fit[self.base_idx]
+
+    def _is_termination(self):
+        """NAA terminates when one of the following termination cri- teria is satisfied:
+        
+        a) The current best solution falls into the acceptance range.
+        b) The pre-set maximum generation number `iteration` is reached."""
+        if self.acpt_rnge is not None:
+            if self.pop_fit[self.shel_leaders_idx[0]] < self.acpt_rnge:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def _solution(self):
+        """Give the solution in the current situation."""  # TODO
+
+
+    def _overall_procudure(self):
+        """OVERALL PROCEDURES OF NAA"""
+        self._init_population()
+        self._init_shelters()
+        for j in range(self.iter_time):
+            self._individual_migration()  # perform migration and search
+            self._update_shelters()  # update the shelters
+            if self._is_termination():  # if termination criterions are met
+                return self._solution()
+        return self._solution()
+
+    def solve(self, prt=False):
+        assert self.loaded is True, "Optimization problem must be loaded into NAA before solved."
 
 
             
