@@ -8,12 +8,11 @@ Date   : 2016/11/18
 import random
 
 import numpy as np
-import scipy as sp
 
 
 class NAA_base(object):
 
-    def __init__(self, dimension, bound, iteration, parameters, verbose, acpt_rnge=None):
+    def __init__(self, dimension, bound, iteration, parameters, verbose=None, acpt_rnge=None):
         """NAA base class, include population initialize and basic evolution algorithm.
 
         For now, all the dimension default to be float or np.float64 type.
@@ -27,10 +26,10 @@ class NAA_base(object):
                             [(1) population       - integer. Number of the individuals,
                              (2) shelter_number   - integer. Number of the shelters,
                              (3) shelter_capacity - integer. Capacity of each shelter,
-                             (4) Cr_local         - Local crossover factor,                      TODO: type
-                             (5) Cr_global        - Global crossover factor,
-                             (6) alpha            - Movement factor,
-                             (7) delta            - Scaling factor]
+                             (4) Cr_local         - float (0, 1] Local crossover factor,                      
+                             (5) Cr_global        - float (0, 1] Global crossover factor,
+                             (6) alpha            - float. Movement factor,
+                             (7) delta            - float. Scaling factor]
              verbose    - iteration information display flag.                                    TODO: verbose
              acpt_rnge  - Acceptance range, default to be None
         """
@@ -67,15 +66,16 @@ class NAA_base(object):
         # check is the problem loaded successfully
         self.loaded = False
 
-    def load_problem(opt_objective, fitness_func=None):
+    def load_problem(self, opt_objective, fitness_func=None):
         """Load optimization problem and fitness function.
 
         Args:
             opt_objective - type: function.
             fitness_func  - type: function.
         """
+        # TODO : test if callable
         assert hasattr(opt_objective, '__call__'), "`opt_objective` must be callable."
-        if fitness_func is not None
+        if fitness_func is not None:
             assert hasattr(fitness_func, '__call__'), "`fitness_func` must be callable."
         else:
             fitness_func = opt_objective
@@ -130,8 +130,8 @@ class NAA_base(object):
 
         # set the base individual, C_base and fit_base, tobe the (N_shels + 1)th  individual of the sorted individuals
         self.base_idx = fit_ascendant_order_idx[self.N_shels + 1]
-        self.base_individual = self.pop[base_idx]
-        self.base_fitness = self.pop_fit[base_idx]
+        self.base_individual = self.pop[self.base_idx]
+        self.base_fitness = self.pop_fit[self.base_idx]
 
         # set the initial shelter followers
         pt = 0  # count for each shelters
@@ -270,7 +270,7 @@ class NAA_base(object):
                     else:
                         new_ind, new_fit = self._local_search_follower(i)
             else:  # if it is an explore individual
-                choosen_shel = random.randint(0, self.N_shels)
+                choosen_shel = random.randint(0, self.N_shels - 1)
                 R_s = self._prob_enter(choosen_shel)
                 if random.random() < R_s:  # if enter the shelter
                     new_ind, new_fit = self._local_search_follower(i)
@@ -311,8 +311,15 @@ class NAA_base(object):
             return False
 
     def _solution(self):
-        """Give the solution in the current situation."""  # TODO
-
+        """Give the solution in the current situation."""
+        solution_idx = self.shel_leaders_idx[0]
+        solution = self.pop[solution_idx]
+        solution_fit = self.pop_fit[solution_idx]
+        try:
+            solution_value = self.opt_obj(solution)
+        except:
+            raise ValueError("Error when calculate opt problem.")
+        return solution, solution_fit, solution_value
 
     def _overall_procudure(self):
         """OVERALL PROCEDURES OF NAA"""
@@ -325,14 +332,30 @@ class NAA_base(object):
                 return self._solution()
         return self._solution()
 
-    def solve(self, prt=False):
+    def solve(self, prt=False, fit=False, value=True):
+        """Solve the loaded problem. Problem loaded required.
+        Args:
+            prt   - Boolen, Print solution or not
+            fit   - Boolen, Print fitness or not
+            value - Boolen, Print solution value or not
+        Return:
+            array of solution."""
         assert self.loaded is True, "Optimization problem must be loaded into NAA before solved."
+        solution, solution_fit, solution_value = self._overall_procudure()
+        if prt:
+            print("The solution:\n", end='')
+            for number in solution:
+                print("%.6f" % number, end=' ')
+            if value:
+                print(type(solution_value))
+                print("\nThe solution value:\n\t%.8f" % solution_value)
+            if fit:
+                print("\nThe fitness value:\n\t%.8f" % solution_fit)
+        return solution, solution_fit, solution_value
 
 
-            
 class NAA(NAA_base):
 
-    def __init__(self):
-        pass
-
+    def __init__(self, dimension, bound, iteration, parameters, verbose=None, acpt_rnge=None):
+        super(NAA, self).__init__(dimension, bound, iteration, parameters, verbose, acpt_rnge)
 
