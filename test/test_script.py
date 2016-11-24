@@ -12,6 +12,7 @@ import numpy as np
 
 from naa.naa import NAA
 
+
 def GeneralizedGriewank(variables):
     assert isinstance(variables, np.ndarray), "Argumrnts by a np.array obj with type float."
     prod = math.cos(variables[0])

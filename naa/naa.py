@@ -299,7 +299,7 @@ class NAA_base(object):
 
     def _is_termination(self):
         """NAA terminates when one of the following termination cri- teria is satisfied:
-        
+
         a) The current best solution falls into the acceptance range.
         b) The pre-set maximum generation number `iteration` is reached."""
         if self.acpt_rnge is not None:
@@ -334,6 +334,7 @@ class NAA_base(object):
 
     def solve(self, prt=False, fit=False, value=True):
         """Solve the loaded problem. Problem loaded required.
+
         Args:
             prt   - Boolen, Print solution or not
             fit   - Boolen, Print fitness or not
