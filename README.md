@@ -1,5 +1,6 @@
-# NAA
-Natural Aggregation Algorithm: A New Powerful Global Optimizer over Continuous Spaces
+# Natural Aggregation Algorithm
+
+A New Powerful Global Optimizer over Continuous Spaces
 
 [![MIT](https://img.shields.io/apm/l/vim-mode.svg)](https://github.com/JasonGUTU/NAA/blob/master/LICENSE) [![Build passing](https://img.shields.io/travis/rust-lang/rust/master.svg)]()
 ----
@@ -9,6 +10,9 @@ Balancing the exploitation and exploration is an important consideration in the 
 ### Feature
 
 1. Fast
+
+   ​
+
 2. Reliable
 
 ### Install

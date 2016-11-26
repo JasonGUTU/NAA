@@ -8,6 +8,7 @@ Date   : 2016/11/18
 import random
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class NAA_base(object):

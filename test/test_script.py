@@ -10,7 +10,7 @@ import math
 
 import numpy as np
 
-from naa.naa import NAA
+from ..naa.naa import NAA
 
 
 def GeneralizedGriewank(variables):
